@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f1117">
+<title>Attendance</title>
+<link rel="manifest" id="manifest-placeholder">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #171b26;
+    --surface2: #1e2434;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #f0f2f8;
+    --muted: #6b7394;
+    --dim: #3a4060;
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.1);
+    --green-border: rgba(34,197,94,0.25);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.1);
+    --red-border: rgba(239,68,68,0.25);
+    --amber: #f59e0b;
+    --amber-bg: rgba(245,158,11,0.1);
+    --amber-border: rgba(245,158,11,0.25);
+    --blue: #60a5fa;
+    --blue-bg: rgba(96,165,250,0.1);
+    --accent: #818cf8;
+    --accent-bg: rgba(129,140,248,0.1);
+    --radius: 16px;
+    --radius-sm: 10px;
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); overscroll-behavior: none; }
+
+  /* ── LAYOUT ── */
+  #app { display: flex; flex-direction: column; height: 100dvh; max-width: 430px; margin: 0 auto; position: relative; }
+  #header { padding: 52px 20px 16px; flex-shrink: 0; }
+  #header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+  #header p  { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  #content { flex: 1; overflow-y: auto; padding: 0 16px 16px; scroll-behavior: smooth; }
+  #nav { display: flex; background: var(--surface); border-top: 1px solid var(--border); padding: 8px 0 calc(8px + var(--safe-bottom)); flex-shrink: 0; }
+  .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border: none; background: none; color: var(--muted); font-family: var(--font); font-size: 10px; font-weight: 500; cursor: pointer; transition: color 0.2s; }
+  .nav-btn svg { width: 22px; height: 22px; }
+  .nav-btn.active { color: var(--accent); }
+
+  /* ── CARDS ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .card-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+
+  /* ── METRIC GRID ── */
+  .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .metric-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .metric-value { font-size: 28px; font-weight: 600; font-family: var(--mono); line-height: 1; }
+  .metric-sub   { font-size: 11px; color: var(--muted); margin-top: 5px; }
+  .metric-bar   { height: 3px; background: var(--surface2); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+  .metric-bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s cubic-bezier(.4,0,.2,1); }
+  .c-green { color: var(--green); } .c-red { color: var(--red); } .c-amber { color: var(--amber); } .c-muted { color: var(--muted); }
+
+  /* ── ALERT BANNER ── */
+  .alert { border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; line-height: 1.4; }
+  .alert-icon { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
+  .alert.ok     { background: var(--green-bg);  border: 1px solid var(--green-border);  color: var(--green); }
+  .alert.warn   { background: var(--amber-bg);  border: 1px solid var(--amber-border);  color: var(--amber); }
+  .alert.danger { background: var(--red-bg);    border: 1px solid var(--red-border);    color: var(--red); }
+
+  /* ── TABS (Home) ── */
+  .tab-row { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; scrollbar-width: none; }
+  .tab-row::-webkit-scrollbar { display: none; }
+  .tab-pill { padding: 7px 16px; border-radius: 20px; font-size: 13px; font-weight: 500; border: 1px solid var(--border2); background: transparent; color: var(--muted); cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+  .tab-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ── LOG VIEW ── */
+  .log-entry { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .log-entry:last-child { border-bottom: none; }
+  .log-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .log-dot.present { background: var(--green); }
+  .log-dot.absent  { background: var(--red); }
+  .log-dot.holiday { background: var(--amber); }
+  .log-date { flex: 1; }
+  .log-date-main { font-size: 14px; font-weight: 500; }
+  .log-date-sub  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .log-badge { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
+  .log-badge.present { background: var(--green-bg); color: var(--green); }
+  .log-badge.absent  { background: var(--red-bg);   color: var(--red); }
+  .log-badge.holiday { background: var(--amber-bg); color: var(--amber); }
+  .log-remove { background: none; border: none; color: var(--dim); cursor: pointer; padding: 4px; font-size: 18px; line-height: 1; }
+
+  /* ── MONTHLY CALENDAR ── */
+  .month-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .month-nav { background: none; border: 1px solid var(--border2); border-radius: 8px; color: var(--text); width: 34px; height: 34px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+  .month-title-box { text-align: center; }
+  .month-name { font-size: 16px; font-weight: 600; }
+  .month-pct  { font-size: 12px; margin-top: 2px; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-day-name { font-size: 10px; color: var(--muted); text-align: center; padding: 4px 0; font-weight: 600; }
+  .cal-cell { aspect-ratio: 1; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; position: relative; }
+  .cal-cell.empty { background: transparent; cursor: default; border-color: transparent; }
+  .cal-cell.present { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+  .cal-cell.absent  { background: var(--red-bg);   color: var(--red);   border-color: var(--red-border); }
+  .cal-cell.holiday { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-border); }
+  .cal-cell.sunday  { background: var(--surface2); color: var(--dim);   cursor: default; }
+  .cal-cell.future  { background: var(--surface);  color: var(--dim);   cursor: default; border-color: var(--border); }
+  .cal-cell.today   { border-color: var(--accent) !important; }
+  .cal-legend { display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+  .cal-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .cal-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ── FORMS ── */
+  .form-group { margin-bottom: 14px; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 8px; display: block; }
+  .form-input { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 12px 14px; color: var(--text); font-family: var(--font); font-size: 15px; outline: none; appearance: none; -webkit-appearance: none; }
+  .form-input:focus { border-color: var(--accent); }
+  .form-select { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 12px 14px; color: var(--text); font-family: var(--font); font-size: 15px; outline: none; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7394' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+  .btn { width: 100%; padding: 14px; border-radius: var(--radius-sm); border: none; font-family: var(--font); font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:active { transform: scale(0.98); opacity: 0.9; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border2); }
+  .btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); margin-top: 8px; }
+  .success-msg { font-size: 13px; color: var(--green); margin-top: 8px; min-height: 18px; text-align: center; }
+  .section-gap { height: 8px; }
+
+  /* ── HOLIDAY LIST ── */
+  .hol-entry { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .hol-entry:last-child { border-bottom: none; }
+  .hol-info { flex: 1; }
+  .hol-name { font-size: 14px; font-weight: 500; }
+  .hol-date { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── EMPTY STATES ── */
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+
+  /* ── PROGRESS RING ── */
+  .progress-ring-wrap { display: flex; justify-content: center; margin: 4px 0 16px; }
+  svg.ring { transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: var(--surface2); }
+  .ring-fill { fill: none; stroke-linecap: round; transition: stroke-dashoffset 0.8s cubic-bezier(.4,0,.2,1), stroke 0.4s; }
+  .ring-text { font-family: var(--mono); font-weight: 600; }
+
+  /* scrollbar */
+  #content::-webkit-scrollbar { width: 0; }
+
+  /* page transitions */
+  .page { display: none; }
+  .page.active { display: block; animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: translateY(0); } }
+
+  /* install banner */
+  #install-banner { display: none; position: fixed; bottom: calc(64px + var(--safe-bottom)); left: 50%; transform: translateX(-50%); width: calc(100% - 32px); max-width: 398px; background: var(--accent); border-radius: var(--radius); padding: 14px 16px; color: #fff; font-size: 13px; z-index: 100; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+  #install-banner .ib-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  #install-banner button { background: rgba(255,255,255,0.2); border: none; border-radius: 8px; color: #fff; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <h1>Attendance</h1>
+    <p id="header-sub">Loading...</p>
+  </div>
+
+  <div id="content">
+
+    <!-- HOME PAGE -->
+    <div class="page active" id="page-home">
+      <div id="alert-banner"></div>
+
+      <!-- Progress ring + overall -->
+      <div class="card" style="padding:20px 16px;">
+        <div class="progress-ring-wrap">
+          <svg class="ring" width="140" height="140" viewBox="0 0 140 140">
+            <circle class="ring-bg" cx="70" cy="70" r="58" stroke-width="10"/>
+            <circle class="ring-fill" id="ring-overall" cx="70" cy="70" r="58" stroke-width="10" stroke-dasharray="364.4" stroke-dashoffset="364.4"/>
+            <text id="ring-label" class="ring-text" x="70" y="70" text-anchor="middle" dominant-baseline="middle" transform="rotate(90,70,70)" font-size="26" fill="#f0f2f8">—</text>
+            <text x="70" y="88" text-anchor="middle" dominant-baseline="middle" transform="rotate(90,70,70)" font-size="11" fill="#6b7394" font-family="'DM Sans',sans-serif">overall</text>
+          </svg>
+        </div>
+        <div class="metric-grid" style="margin-bottom:0;">
+          <div>
+            <div class="metric-label">This month</div>
+            <div class="metric-value" id="m-monthly">—</div>
+            <div class="metric-sub" id="m-monthly-sub"></div>
+            <div class="metric-bar"><div class="metric-bar-fill" id="bar-monthly"></div></div>
+          </div>
+          <div>
+            <div class="metric-label">Total days</div>
+            <div class="metric-value" id="m-total" style="color:var(--blue)">—</div>
+            <div class="metric-sub" id="m-total-sub"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-label">Present</div>
+          <div class="metric-value c-green" id="m-present">—</div>
+          <div class="metric-sub">working days</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Absent</div>
+          <div class="metric-value c-red" id="m-absent">—</div>
+          <div class="metric-sub">working days</div>
+        </div>
+      </div>
+
+      <div class="metric-card" style="margin-bottom:12px; padding:14px 16px;">
+        <div class="metric-label">Days needed to reach 75%</div>
+        <div class="metric-value" id="m-needed" style="color:var(--accent)">—</div>
+        <div class="metric-sub">consecutive present days</div>
+      </div>
+
+      <!-- Recent log -->
+      <div class="card">
+        <div class="card-title">Recent entries</div>
+        <div id="recent-list"></div>
+      </div>
+    </div>
+
+    <!-- LOG PAGE -->
+    <div class="page" id="page-log">
+      <div class="card">
+        <div class="card-title">Add a day</div>
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input type="date" class="form-input" id="log-date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-select" id="log-status">
+            <option value="present">Present</option>
+            <option value="absent">Absent</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="addDay()">Save</button>
+        <div class="success-msg" id="log-msg"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Bulk add range</div>
+        <div class="form-group">
+          <label class="form-label">From</label>
+          <input type="date" class="form-input" id="bulk-from">
+        </div>
+        <div class="form-group">
+          <label class="form-label">To</label>
+          <input type="date" class="form-input" id="bulk-to">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-select" id="bulk-status">
+            <option value="present">Present</option>
+            <option value="absent">Absent</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Include</label>
+          <select class="form-select" id="bulk-type">
+            <option value="weekdays">Weekdays only (Mon–Sat)</option>
+            <option value="all">All days</option>
+          </select>
+        </div>
+        <button class="btn btn-secondary" onclick="bulkAdd()">Add range</button>
+        <div class="success-msg" id="bulk-msg"></div>
+      </div>
+    </div>
+
+    <!-- CALENDAR PAGE -->
+    <div class="page" id="page-cal">
+      <div class="card">
+        <div class="month-header">
+          <button class="month-nav" onclick="calPrev()">&#8249;</button>
+          <div class="month-title-box">
+            <div class="month-name" id="cal-month-name"></div>
+            <div class="month-pct" id="cal-month-pct"></div>
+          </div>
+          <button class="month-nav" onclick="calNext()">&#8250;</button>
+        </div>
+        <div class="cal-grid" id="cal-day-names"></div>
+        <div class="cal-grid" id="cal-cells" style="margin-top:6px;"></div>
+        <div class="cal-legend">
+          <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--green)"></div>Present</div>
+          <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--red)"></div>Absent</div>
+          <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--amber)"></div>Holiday</div>
+          <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--dim)"></div>Sunday</div>
+        </div>
+      </div>
+      <div class="card" id="cal-month-summary"></div>
+    </div>
+
+    <!-- HOLIDAYS PAGE -->
+    <div class="page" id="page-hol">
+      <div class="card">
+        <div class="card-title">Add holiday</div>
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input type="date" class="form-input" id="hol-date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Name</label>
+          <input type="text" class="form-input" id="hol-name" placeholder="e.g. Diwali">
+        </div>
+        <button class="btn btn-primary" onclick="addHoliday()">Add holiday</button>
+        <div class="success-msg" id="hol-msg"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Holidays (<span id="hol-count">0</span>)</div>
+        <div id="hol-list"></div>
+      </div>
+
+      <p style="font-size:12px;color:var(--muted);text-align:center;padding:8px 0 4px;">
+        Sundays are excluded automatically.
+      </p>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- BOTTOM NAV -->
+  <nav id="nav">
+    <button class="nav-btn active" id="nav-home" onclick="setPage('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+      Home
+    </button>
+    <button class="nav-btn" id="nav-log" onclick="setPage('log')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+      Log
+    </button>
+    <button class="nav-btn" id="nav-cal" onclick="setPage('cal')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Calendar
+    </button>
+    <button class="nav-btn" id="nav-hol" onclick="setPage('hol')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Holidays
+    </button>
+  </nav>
+</div>
+
+<!-- Install prompt -->
+<div id="install-banner">
+  <div class="ib-row">
+    <span>Install as app on your home screen</span>
+    <div style="display:flex;gap:8px;">
+      <button onclick="installApp()">Install</button>
+      <button onclick="dismissInstall()" style="background:rgba(255,255,255,0.1);">✕</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STORAGE ──────────────────────────────────────────
+const KEY_ATT = 'att_v2';
+const KEY_HOL = 'hol_v2';
+
+function loadData()  { try { return JSON.parse(localStorage.getItem(KEY_ATT)||'{}'); } catch(e){ return {}; } }
+function loadHols()  { try { return JSON.parse(localStorage.getItem(KEY_HOL)||'{}'); } catch(e){ return {}; } }
+function saveData(d) { localStorage.setItem(KEY_ATT, JSON.stringify(d)); }
+function saveHols(h) { localStorage.setItem(KEY_HOL, JSON.stringify(h)); }
+
+let data = loadData();
+let hols = loadHols();
+
+// ── HELPERS ──────────────────────────────────────────
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function isSunday(dateStr)  { return new Date(dateStr+'T12:00:00').getDay() === 0; }
+function isHoliday(dateStr) { return !!hols[dateStr]; }
+function isWorking(dateStr) { return !isSunday(dateStr) && !isHoliday(dateStr); }
+
+function fmtDate(d) {
+  const dt = new Date(d+'T12:00:00');
+  return dt.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+}
+function fmtDateShort(d) {
+  const dt = new Date(d+'T12:00:00');
+  return dt.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+}
+function todayStr() { return new Date().toISOString().slice(0,10); }
+
+function getStats() {
+  const entries = Object.entries(data);
+  const workingEntries = entries.filter(([d]) => isWorking(d));
+  const total   = workingEntries.length;
+  const present = workingEntries.filter(([,s]) => s==='present').length;
+  const overall = total > 0 ? present/total : null;
+
+  const now = new Date();
+  const ym  = now.toISOString().slice(0,7);
+  const mEntries = workingEntries.filter(([d]) => d.startsWith(ym));
+  const mTotal   = mEntries.length;
+  const mPresent = mEntries.filter(([,s]) => s==='present').length;
+  const monthly  = mTotal > 0 ? mPresent/mTotal : null;
+
+  let needed = 0;
+  if (total > 0 && overall !== null && overall < 0.75) {
+    let p = present, t = total;
+    while ((p/t) < 0.75 && needed < 500) { p++; t++; needed++; }
+  }
+
+  return { total, present, absent: total-present, overall, mTotal, mPresent, monthly, needed };
+}
+
+function pctColor(v) {
+  if (v === null) return 'var(--muted)';
+  if (v < 0.75) return 'var(--red)';
+  if (v < 0.80) return 'var(--amber)';
+  return 'var(--green)';
+}
+
+// ── RENDER HOME ───────────────────────────────────────
+function renderHome() {
+  const s = getStats();
+  const now = new Date();
+
+  // Header subtitle
+  document.getElementById('header-sub').textContent =
+    now.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+
+  // Alert
+  const ab = document.getElementById('alert-banner');
+  if (s.total === 0) {
+    ab.innerHTML = '<div class="alert ok"><svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg><span>No data yet. Tap <b>Log</b> to add your first day.</span></div>';
+  } else if (s.overall < 0.75 || s.monthly < 0.75) {
+    ab.innerHTML = `<div class="alert danger"><svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span><b>Alert:</b> Attendance below 75% — immediate attention needed.</span></div>`;
+  } else if (s.overall < 0.80 || s.monthly < 0.80) {
+    ab.innerHTML = `<div class="alert warn"><svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span><b>Warning:</b> Approaching 75% threshold. Be careful.</span></div>`;
+  } else {
+    ab.innerHTML = `<div class="alert ok"><svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span>Attendance is healthy — keep it up!</span></div>`;
+  }
+
+  // Progress ring
+  const ov = s.overall !== null ? s.overall : 0;
+  const circumference = 364.4;
+  const offset = circumference - (ov * circumference);
+  const ring = document.getElementById('ring-overall');
+  ring.style.strokeDashoffset = offset;
+  ring.style.stroke = pctColor(s.overall);
+  document.getElementById('ring-label').textContent = s.overall !== null ? Math.round(s.overall*100)+'%' : '—';
+  document.getElementById('ring-label').setAttribute('fill', pctColor(s.overall));
+
+  // Monthly
+  const mv = document.getElementById('m-monthly');
+  mv.textContent = s.monthly !== null ? (s.monthly*100).toFixed(1)+'%' : '—';
+  mv.style.color = pctColor(s.monthly);
+  document.getElementById('m-monthly-sub').textContent = s.mTotal > 0 ? `${s.mPresent} of ${s.mTotal} days` : 'No data';
+  const bm = document.getElementById('bar-monthly');
+  bm.style.width = (s.monthly !== null ? Math.min(s.monthly*100,100) : 0)+'%';
+  bm.style.background = pctColor(s.monthly);
+
+  // Total
+  document.getElementById('m-total').textContent = s.total;
+  document.getElementById('m-total-sub').textContent = `${s.present} present · ${s.absent} absent`;
+
+  // Cards
+  document.getElementById('m-present').textContent = s.present;
+  document.getElementById('m-absent').textContent  = s.absent;
+  const nd = document.getElementById('m-needed');
+  nd.textContent = s.needed === 0 ? '0 ✓' : s.needed;
+  nd.style.color = s.needed === 0 ? 'var(--green)' : s.needed > 10 ? 'var(--red)' : 'var(--amber)';
+
+  // Recent list
+  const entries = Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,8);
+  const rl = document.getElementById('recent-list');
+  if (entries.length === 0) {
+    rl.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>No entries yet</div>';
+  } else {
+    rl.innerHTML = entries.map(([d,st]) => {
+      const hw = isHoliday(d) ? 'holiday' : isSunday(d) ? 'sunday' : st;
+      return `<div class="log-entry">
+        <div class="log-dot ${hw}"></div>
+        <div class="log-date">
+          <div class="log-date-main">${fmtDate(d)}</div>
+          <div class="log-date-sub">${new Date(d+'T12:00:00').toLocaleDateString('en-IN',{weekday:'long'})}</div>
+        </div>
+        <span class="log-badge ${hw}">${st.charAt(0).toUpperCase()+st.slice(1)}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ── CALENDAR ─────────────────────────────────────────
+let calYear, calMonth;
+function initCal() {
+  const now = new Date();
+  calYear  = now.getFullYear();
+  calMonth = now.getMonth();
+}
+function renderCal() {
+  const now  = new Date();
+  const yr   = calYear, mo = calMonth;
+  const name = MONTHS[mo] + ' ' + yr;
+
+  // Month stats (working days only)
+  const ym = `${yr}-${String(mo+1).padStart(2,'0')}`;
+  const monthEntries = Object.entries(data).filter(([d]) => d.startsWith(ym) && isWorking(d));
+  const mTotal   = monthEntries.length;
+  const mPresent = monthEntries.filter(([,s])=>s==='present').length;
+  const pct      = mTotal > 0 ? (mPresent/mTotal*100).toFixed(1)+'%' : 'No data';
+  const pctColor2 = mTotal > 0 ? pctColor(mPresent/mTotal) : 'var(--muted)';
+
+  document.getElementById('cal-month-name').textContent = name;
+  const pctEl = document.getElementById('cal-month-pct');
+  pctEl.textContent = mTotal > 0 ? `${pct} · ${mPresent}/${mTotal} days` : 'No data';
+  pctEl.style.color = pctColor2;
+
+  // Day names
+  const dnEl = document.getElementById('cal-day-names');
+  dnEl.innerHTML = DAYS.map(d=>`<div class="cal-day-name">${d}</div>`).join('');
+
+  // Cells
+  const daysInMonth = new Date(yr, mo+1, 0).getDate();
+  const firstDow    = new Date(yr, mo, 1).getDay();
+  let cells = '';
+  for (let i=0; i<firstDow; i++) cells += '<div class="cal-cell empty"></div>';
+  for (let d=1; d<=daysInMonth; d++) {
+    const key  = `${ym}-${String(d).padStart(2,'0')}`;
+    const dow  = new Date(yr, mo, d).getDay();
+    const isToday = key === todayStr();
+    const isFuture = new Date(yr, mo, d) > now;
+    let cls = '';
+    if (dow === 0) cls = 'sunday';
+    else if (isHoliday(key)) cls = 'holiday';
+    else if (isFuture) cls = 'future';
+    else if (data[key] === 'present') cls = 'present';
+    else if (data[key] === 'absent')  cls = 'absent';
+    else cls = 'future';
+    if (isToday) cls += ' today';
+    const onclick = (!isFuture && dow !== 0 && !isHoliday(key)) ? `onclick="toggleCal('${key}')"` : '';
+    cells += `<div class="cal-cell ${cls}" ${onclick}>${d}</div>`;
+  }
+  document.getElementById('cal-cells').innerHTML = cells;
+
+  // Summary card
+  const sumEl = document.getElementById('cal-month-summary');
+  const absent = monthEntries.filter(([,s])=>s==='absent').length;
+  const holCount = Object.keys(hols).filter(d=>d.startsWith(ym)).length;
+  sumEl.innerHTML = `
+    <div class="card-title">Month summary</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+      <div><div class="metric-label">Present</div><div style="font-size:22px;font-weight:600;color:var(--green);font-family:var(--mono)">${mPresent}</div></div>
+      <div><div class="metric-label">Absent</div><div style="font-size:22px;font-weight:600;color:var(--red);font-family:var(--mono)">${absent}</div></div>
+      <div><div class="metric-label">Holidays</div><div style="font-size:22px;font-weight:600;color:var(--amber);font-family:var(--mono)">${holCount}</div></div>
+    </div>`;
+}
+function calPrev() { calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCal(); }
+function calNext() { calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCal(); }
+function toggleCal(key) {
+  if (!data[key]) data[key] = 'present';
+  else if (data[key]==='present') data[key] = 'absent';
+  else delete data[key];
+  saveData(data);
+  renderAll();
+  renderCal();
+}
+
+// ── LOG ACTIONS ───────────────────────────────────────
+function addDay() {
+  const d  = document.getElementById('log-date').value;
+  const st = document.getElementById('log-status').value;
+  const msg = document.getElementById('log-msg');
+  if (!d) { msg.textContent = 'Please select a date.'; msg.style.color='var(--red)'; return; }
+  if (isSunday(d)) { msg.textContent = 'Sundays are not counted.'; msg.style.color='var(--amber)'; return; }
+  if (isHoliday(d)) { msg.textContent = `${hols[d]} is a holiday — not counted.`; msg.style.color='var(--amber)'; return; }
+  data[d] = st;
+  saveData(data);
+  msg.textContent = `Saved: ${fmtDateShort(d)} as ${st}.`;
+  msg.style.color = 'var(--green)';
+  renderAll();
+  setTimeout(()=>msg.textContent='', 2500);
+}
+
+function bulkAdd() {
+  const from = document.getElementById('bulk-from').value;
+  const to   = document.getElementById('bulk-to').value;
+  const st   = document.getElementById('bulk-status').value;
+  const type = document.getElementById('bulk-type').value;
+  const msg  = document.getElementById('bulk-msg');
+  if (!from || !to) { msg.textContent='Select both dates.'; msg.style.color='var(--red)'; return; }
+  let cur = new Date(from+'T12:00:00'), end = new Date(to+'T12:00:00'), count = 0;
+  while (cur <= end) {
+    const key = cur.toISOString().slice(0,10);
+    const dow = cur.getDay();
+    const skip = (type==='weekdays' && dow===0) || isHoliday(key);
+    if (!skip) { data[key] = st; count++; }
+    cur.setDate(cur.getDate()+1);
+  }
+  saveData(data);
+  msg.textContent = `Added ${count} days as "${st}".`;
+  msg.style.color = 'var(--green)';
+  renderAll();
+  setTimeout(()=>msg.textContent='', 2500);
+}
+
+// ── HOLIDAYS ─────────────────────────────────────────
+function addHoliday() {
+  const d = document.getElementById('hol-date').value;
+  const n = document.getElementById('hol-name').value.trim();
+  const msg = document.getElementById('hol-msg');
+  if (!d) { msg.textContent='Select a date.'; msg.style.color='var(--red)'; return; }
+  hols[d] = n || 'Holiday';
+  saveHols(hols);
+  document.getElementById('hol-date').value = '';
+  document.getElementById('hol-name').value = '';
+  msg.textContent = `Added: ${fmtDateShort(d)} — ${hols[d]}`;
+  msg.style.color = 'var(--green)';
+  renderHolidays();
+  renderAll();
+  setTimeout(()=>msg.textContent='', 2500);
+}
+
+function removeHoliday(d) {
+  delete hols[d];
+  saveHols(hols);
+  renderHolidays();
+  renderAll();
+}
+
+function renderHolidays() {
+  const entries = Object.entries(hols).sort((a,b)=>a[0].localeCompare(b[0]));
+  document.getElementById('hol-count').textContent = entries.length;
+  const el = document.getElementById('hol-list');
+  if (entries.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🗓️</div>No holidays added yet</div>';
+    return;
+  }
+  el.innerHTML = entries.map(([d,n]) => `
+    <div class="hol-entry">
+      <div class="log-dot holiday"></div>
+      <div class="hol-info">
+        <div class="hol-name">${n}</div>
+        <div class="hol-date">${fmtDate(d)} · ${new Date(d+'T12:00:00').toLocaleDateString('en-IN',{weekday:'long'})}</div>
+      </div>
+      <button class="log-remove" onclick="removeHoliday('${d}')">×</button>
+    </div>`).join('');
+}
+
+// ── PAGE NAV ─────────────────────────────────────────
+let currentPage = 'home';
+function setPage(p) {
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.getElementById('nav-'+p).classList.add('active');
+  currentPage = p;
+  if (p === 'home') renderHome();
+  if (p === 'cal')  renderCal();
+  if (p === 'hol')  renderHolidays();
+  window.scrollTo(0,0);
+  document.getElementById('content').scrollTop = 0;
+}
+
+function renderAll() {
+  if (currentPage === 'home') renderHome();
+  if (currentPage === 'cal')  renderCal();
+}
+
+// ── PWA INSTALL ───────────────────────────────────────
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('install-banner').style.display = 'block';
+});
+function installApp() {
+  if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt = null; }
+  document.getElementById('install-banner').style.display = 'none';
+}
+function dismissInstall() {
+  document.getElementById('install-banner').style.display = 'none';
+}
+
+// ── INIT ─────────────────────────────────────────────
+initCal();
+const t = todayStr();
+document.getElementById('log-date').value   = t;
+document.getElementById('bulk-from').value  = t;
+document.getElementById('bulk-to').value    = t;
+document.getElementById('hol-date').value   = t;
+renderHome();
+renderHolidays();
+
+// Service worker for offline
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = 'att-v1';
+    self.addEventListener('install', e => {
+      e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/'])));
+      self.skipWaiting();
+    });
+    self.addEventListener('fetch', e => {
+      e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+    });
+  `;
+  const blob = new Blob([swCode], {type:'application/javascript'});
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl).catch(()=>{});
+}
+
+// Inline manifest for PWA
+const manifest = {
+  name: 'Attendance',
+  short_name: 'Attendance',
+  start_url: '.',
+  display: 'standalone',
+  background_color: '#0f1117',
+  theme_color: '#0f1117',
+  icons: [{
+    src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='36' fill='%230f1117'/%3E%3Ccircle cx='96' cy='96' r='56' fill='none' stroke='%23818cf8' stroke-width='10'/%3E%3Ctext x='96' y='96' text-anchor='middle' dominant-baseline='middle' fill='%23f0f2f8' font-size='48' font-family='monospace' font-weight='600'%3E%%3C/text%3E%3C/svg%3E",
+    sizes: '192x192', type: 'image/svg+xml'
+  }]
+};
+const mBlob = new Blob([JSON.stringify(manifest)], {type:'application/manifest+json'});
+document.getElementById('manifest-placeholder').href = URL.createObjectURL(mBlob);
+</script>
+</body>
+</html>
